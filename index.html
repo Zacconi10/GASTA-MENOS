@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinControl - Controle de Cartão de Crédito</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- ===== AUTH SCREEN ===== -->
+    <div id="auth-screen" class="auth-screen">
+        <div class="auth-container">
+            <div class="auth-logo">
+                <span class="logo-icon">💳</span>
+                <h1>FinControl</h1>
+            </div>
+            <p class="auth-subtitle">Controle seus cartões de crédito e parcelas</p>
+
+            <div id="login-form">
+                <h2>Entrar</h2>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label>Senha</label>
+                    <input type="password" id="login-password" placeholder="Sua senha" autocomplete="current-password">
+                </div>
+                <button class="btn-primary" onclick="App.login()">Entrar</button>
+                <div class="auth-link">
+                    <a href="#" onclick="App.showRegister()">Criar uma conta</a>
+                </div>
+            </div>
+
+            <div id="register-form" style="display:none">
+                <h2>Criar Conta</h2>
+                <div class="form-group">
+                    <label>Nome completo</label>
+                    <input type="text" id="register-name" placeholder="Seu nome">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="register-email" placeholder="seu@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Senha (min 6 caracteres)</label>
+                    <input type="password" id="register-password" placeholder="Mínimo 6 caracteres">
+                </div>
+                <button class="btn-primary" onclick="App.register()">Criar conta</button>
+                <div class="auth-link">
+                    <a href="#" onclick="App.showLogin()">Já tenho conta</a>
+                </div>
+            </div>
+
+            <div id="auth-error" class="auth-error" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ===== APP SHELL ===== -->
+    <div id="app-shell" class="app-shell" style="display:none">
+
+        <!-- Top Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <span class="logo-icon">💳</span>
+                <span class="header-title">FinControl</span>
+            </div>
+            <div class="header-center">
+                <select id="month-selector" class="month-selector" onchange="App.onMonthChange()">
+                </select>
+            </div>
+            <div class="header-right">
+                <button class="icon-btn" id="alert-btn" onclick="App.navigate('alerts')" title="Notificações">
+                    🔔 <span id="alert-badge" class="badge" style="display:none">0</span>
+                </button>
+                <button class="icon-btn" id="user-btn" onclick="App.navigate('settings')" title="Configurações">
+                    👤 <span id="user-name-display"></span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="app-main">
+
+            <!-- === PAGE: DASHBOARD === -->
+            <section id="page-dashboard" class="page active">
+                <div class="page-header">
+                    <h2>Dashboard</h2>
+                    <p id="dashboard-greeting"></p>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="summary-grid">
+                    <div class="summary-card gradient-primary">
+                        <div class="summary-icon">💸</div>
+                        <div class="summary-info">
+                            <span class="summary-label">Gasto no Mês</span>
+                            <span class="summary-value" id="dash-total-spent">R$ 0,00</span>
+                        </div>
+                    </div>
+                    <div class="summary-card gradient-secondary">
+                        <div class="summary-icon">📋</div>
+                        <div class="summary-info">
+                            <span class="summary-label">Faturas Abertas</span>
+                            <span class="summary-value" id="dash-open-invoices">0</span>
+                        </div>
+                    </div>
+                    <div class="summary-card gradient-warn">
+                        <div class="summary-icon">💎</div>
+                        <div class="summary-info">
+                            <span class="summary-label">Limite Disponível</span>
+                            <span class="summary-value" id="dash-available-limit">R$ 0,00</span>
+                        </div>
+                    </div>
+                    <div class="summary-card gradient-info">
+                        <div class="summary-icon">🛒</div>
+                        <div class="summary-info">
+                            <span class="summary-label">Compras no Mês</span>
+                            <span class="summary-value" id="dash-purchases-count">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <h3>Gastos por Categoria</h3>
+                        <canvas id="chart-category"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Evolução Mensal (6 meses)</h3>
+                        <canvas id="chart-monthly"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Gastos por Familiar</h3>
+                        <canvas id="chart-family"></canvas>
+                    </div>
+                </div>
+
+                <!-- Invoices List -->
+                <div class="section-card">
+                    <h3>Faturas do Mês</h3>
+                    <div id="dash-invoices-list" class="invoices-compact-list"></div>
+                </div>
+
+                <!-- Recent Purchases -->
+                <div class="section-card">
+                    <h3>Últimas Compras</h3>
+                    <div id="dash-recent-purchases" class="purchases-compact-list"></div>
+                </div>
+            </section>
+
+            <!-- === PAGE: CARDS === -->
+            <section id="page-cards" class="page">
+                <div class="page-header">
+                    <h2>Meus Cartões</h2>
+                    <button class="btn-primary" onclick="App.showAddCard()">+ Novo Cartão</button>
+                </div>
+                <div id="cards-list" class="cards-grid"></div>
+
+                <!-- Card Detail (hidden by default) -->
+                <div id="card-detail" class="card-detail" style="display:none">
+                    <button class="btn-back" onclick="App.hideCardDetail()">← Voltar</button>
+                    <div id="card-detail-content"></div>
+                </div>
+            </section>
+
+            <!-- === PAGE: PURCHASES === -->
+            <section id="page-purchases" class="page">
+                <div class="page-header">
+                    <h2>Compras</h2>
+                    <button class="btn-primary" onclick="App.showAddPurchase()">+ Nova Compra</button>
+                </div>
+
+                <!-- Filters -->
+                <div class="filters-bar">
+                    <input type="text" id="purchase-search" placeholder="Buscar estabelecimento..." oninput="App.filterPurchases()">
+                    <select id="purchase-filter-card" onchange="App.filterPurchases()">
+                        <option value="">Todos os cartões</option>
+                    </select>
+                    <select id="purchase-filter-family" onchange="App.filterPurchases()">
+                        <option value="">Todos os familiares</option>
+                    </select>
+                </div>
+
+                <div id="purchases-list" class="purchases-full-list"></div>
+            </section>
+
+            <!-- === PAGE: FAMILY === -->
+            <section id="page-family" class="page">
+                <div class="page-header">
+                    <h2>Família</h2>
+                    <button class="btn-primary" onclick="App.showAddFamily()">+ Novo Familiar</button>
+                </div>
+                <div id="family-list" class="family-list"></div>
+            </section>
+
+            <!-- === PAGE: ALERTS === -->
+            <section id="page-alerts" class="page">
+                <div class="page-header">
+                    <h2>Notificações</h2>
+                    <button class="btn-secondary" onclick="App.markAllAlertsRead()">Marcar todas como lidas</button>
+                </div>
+                <div id="alerts-list" class="alerts-list"></div>
+            </section>
+
+            <!-- === PAGE: SETTINGS === -->
+            <section id="page-settings" class="page">
+                <div class="page-header">
+                    <h2>Configurações</h2>
+                </div>
+                <div class="settings-card">
+                    <h3>Perfil</h3>
+                    <div class="form-group">
+                        <label>Nome</label>
+                        <input type="text" id="settings-name">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="settings-email" disabled>
+                    </div>
+                    <button class="btn-primary" onclick="App.updateProfile()">Salvar</button>
+                </div>
+                <div class="settings-card">
+                    <h3>Conta</h3>
+                    <button class="btn-danger" onclick="App.logout()">Sair da conta</button>
+                </div>
+                <div class="settings-card">
+                    <h3>Dados do Sistema</h3>
+                    <p class="text-muted">Todas as tabelas, triggers e funções estão em <code>supabase/schema.sql</code>.</p>
+                    <p class="text-muted">Execute o schema no SQL Editor do Supabase para configurar o banco.</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-page="dashboard" onclick="App.navigate('dashboard')">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Dashboard</span>
+            </button>
+            <button class="nav-btn" data-page="cards" onclick="App.navigate('cards')">
+                <span class="nav-icon">💳</span>
+                <span class="nav-label">Cartões</span>
+            </button>
+            <button class="nav-btn" data-page="purchases" onclick="App.navigate('purchases')">
+                <span class="nav-icon">🛒</span>
+                <span class="nav-label">Compras</span>
+            </button>
+            <button class="nav-btn" data-page="family" onclick="App.navigate('family')">
+                <span class="nav-icon">👥</span>
+                <span class="nav-label">Família</span>
+            </button>
+            <button class="nav-btn" data-page="alerts" onclick="App.navigate('alerts')">
+                <span class="nav-icon">🔔</span>
+                <span class="nav-label">Alertas</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- ===== MODALS ===== -->
+
+    <!-- Modal: Add/Edit Card -->
+    <div id="modal-card" class="modal" style="display:none">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-card-title">Novo Cartão</h3>
+                <button class="modal-close" onclick="App.closeModal('modal-card')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nome do Cartão</label>
+                    <input type="text" id="card-name" placeholder="Ex: Nubank Roxo">
+                </div>
+                <div class="form-group">
+                    <label>Bandeira</label>
+                    <select id="card-brand">
+                        <option value="">Selecione...</option>
+                        <option value="Visa">Visa</option>
+                        <option value="Mastercard">Mastercard</option>
+                        <option value="Elo">Elo</option>
+                        <option value="Amex">American Express</option>
+                        <option value="Nubank">Nubank</option>
+                        <option value="Inter">Inter</option>
+                        <option value="Itau">Itaú</option>
+                        <option value="C6">C6</option>
+                        <option value="Outro">Outro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Últimos 4 dígitos</label>
+                    <input type="text" id="card-digits" maxlength="4" placeholder="1234">
+                </div>
+                <div class="form-group">
+                    <label>Limite de Crédito (R$)</label>
+                    <input type="number" id="card-limit" step="0.01" min="0" placeholder="5000.00">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Dia Fechamento</label>
+                        <input type="number" id="card-closing" min="1" max="31" placeholder="15">
+                    </div>
+                    <div class="form-group">
+                        <label>Dia Vencimento</label>
+                        <input type="number" id="card-due" min="1" max="31" placeholder="25">
+                    </div>
+                </div>
+                <button class="btn-primary btn-full" onclick="App.saveCard()">Salvar Cartão</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Purchase -->
+    <div id="modal-purchase" class="modal" style="display:none">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nova Compra</h3>
+                <button class="modal-close" onclick="App.closeModal('modal-purchase')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Cartão</label>
+                    <select id="purchase-card"></select>
+                </div>
+                <div class="form-group">
+                    <label>Quem fez a compra</label>
+                    <select id="purchase-family"></select>
+                </div>
+                <div class="form-group">
+                    <label>Estabelecimento</label>
+                    <input type="text" id="purchase-merchant" placeholder="Ex: Amazon, Extra, iFood">
+                </div>
+                <div class="form-group">
+                    <label>Categoria</label>
+                    <select id="purchase-category">
+                        <option value="">Selecione...</option>
+                        <option value="Alimentação">🍔 Alimentação</option>
+                        <option value="Transporte">🚗 Transporte</option>
+                        <option value="Vestuário">👕 Vestuário</option>
+                        <option value="Saúde">💊 Saúde</option>
+                        <option value="Educação">📚 Educação</option>
+                        <option value="Lazer">🎮 Lazer</option>
+                        <option value="Casa">🏠 Casa</option>
+                        <option value="Tecnologia">💻 Tecnologia</option>
+                        <option value="Assinaturas">📱 Assinaturas</option>
+                        <option value="Outros">📦 Outros</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Valor Total (R$)</label>
+                    <input type="number" id="purchase-amount" step="0.01" min="0.01" placeholder="1000.00" oninput="App.calcInstallmentValue()">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Parcelas</label>
+                        <select id="purchase-installments" onchange="App.calcInstallmentValue()">
+                            <option value="1">1x (à vista)</option>
+                            <option value="2">2x</option>
+                            <option value="3">3x</option>
+                            <option value="4">4x</option>
+                            <option value="5">5x</option>
+                            <option value="6">6x</option>
+                            <option value="7">7x</option>
+                            <option value="8">8x</option>
+                            <option value="9">9x</option>
+                            <option value="10">10x</option>
+                            <option value="12">12x</option>
+                            <option value="15">15x</option>
+                            <option value="18">18x</option>
+                            <option value="24">24x</option>
+                            <option value="36">36x</option>
+                            <option value="48">48x</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Valor/Parcela</label>
+                        <input type="text" id="purchase-installment-value" readonly class="readonly-input">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Data da Compra</label>
+                    <input type="date" id="purchase-date">
+                </div>
+                <div class="form-group">
+                    <label>Observações</label>
+                    <textarea id="purchase-notes" rows="2" placeholder="Observações opcionais..."></textarea>
+                </div>
+                <button class="btn-primary btn-full" onclick="App.savePurchase()">Salvar Compra</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Family -->
+    <div id="modal-family" class="modal" style="display:none">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3>Novo Familiar</h3>
+                <button class="modal-close" onclick="App.closeModal('modal-family')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nome</label>
+                    <input type="text" id="family-name" placeholder="Nome do familiar">
+                </div>
+                <div class="form-group">
+                    <label>Email (opcional)</label>
+                    <input type="email" id="family-email" placeholder="email@exemplo.com">
+                </div>
+                <div class="form-group">
+                    <label>Cor</label>
+                    <input type="color" id="family-color" value="#6366F1">
+                </div>
+                <button class="btn-primary btn-full" onclick="App.saveFamily()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Payment -->
+    <div id="modal-payment" class="modal" style="display:none">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Registrar Pagamento</h3>
+                <button class="modal-close" onclick="App.closeModal('modal-payment')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="payment-invoice-info" class="invoice-info-box"></div>
+                <div class="form-group">
+                    <label>Quem está pagando</label>
+                    <select id="payment-family"></select>
+                </div>
+                <div class="form-group">
+                    <label>Valor Pago (R$)</label>
+                    <input type="number" id="payment-amount" step="0.01" min="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Data</label>
+                    <input type="date" id="payment-date">
+                </div>
+                <div class="form-group">
+                    <label>Método</label>
+                    <select id="payment-method">
+                        <option value="pix">PIX</option>
+                        <option value="transferencia">Transferência</option>
+                        <option value="dinheiro">Dinheiro</option>
+                        <option value="boleto">Boleto</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Observações</label>
+                    <textarea id="payment-notes" rows="2"></textarea>
+                </div>
+                <button class="btn-primary btn-full" onclick="App.savePayment()">Registrar Pagamento</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Purchase Detail -->
+    <div id="modal-purchase-detail" class="modal" style="display:none">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Detalhes da Compra</h3>
+                <button class="modal-close" onclick="App.closeModal('modal-purchase-detail')">&times;</button>
+            </div>
+            <div class="modal-body" id="purchase-detail-content"></div>
+        </div>
+    </div>
+
+    <!-- Modal: Invoice Detail -->
+    <div id="modal-invoice" class="modal" style="display:none">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>Fatura</h3>
+                <button class="modal-close" onclick="App.closeModal('modal-invoice')">&times;</button>
+            </div>
+            <div class="modal-body" id="invoice-detail-content"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
